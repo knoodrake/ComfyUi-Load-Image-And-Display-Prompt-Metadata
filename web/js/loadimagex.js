@@ -92,7 +92,23 @@ function extractPromptsFromWorkflow(workflow) {
             }
         }
         
-        // If no KSampler, check for CFGGuider
+        // Check for AdaptiveGuidance nodes
+        if (!positiveNodeId && !negativeNodeId) {
+            for (const nodeId in workflow) {
+                const node = workflow[nodeId];
+                
+                if (node.class_type === "AdaptiveGuidance" && node.inputs) {
+                    if (node.inputs.positive && Array.isArray(node.inputs.positive)) {
+                        positiveNodeId = String(node.inputs.positive[0]);
+                    }
+                    if (node.inputs.negative && Array.isArray(node.inputs.negative)) {
+                        negativeNodeId = String(node.inputs.negative[0]);
+                    }
+                }
+            }
+        }
+        
+        // If no KSampler or AdaptiveGuidance, check for CFGGuider
         if (!positiveNodeId && !negativeNodeId) {
             for (const nodeId in workflow) {
                 const node = workflow[nodeId];
