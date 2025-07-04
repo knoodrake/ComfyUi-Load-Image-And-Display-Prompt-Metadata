@@ -1,6 +1,26 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
+// Configuration option to enable/disable logging
+const ENABLE_LOGGING = false; // Set to true to enable all console logs
+
+// Helper function for conditional logging
+function log(message, style = "") {
+    if (ENABLE_LOGGING) {
+        if (style) {
+            console.log(message, style);
+        } else {
+            console.log(message);
+        }
+    }
+}
+
+function logError(message, error) {
+    if (ENABLE_LOGGING) {
+        console.error(message, error);
+    }
+}
+
 // Helper function to clean potential non-standard JSON from metadata
 function cleanJSONString(jsonString) {
     if (!jsonString) return null;
@@ -16,7 +36,7 @@ function parsePNGMetadata(arrayBuffer) {
     const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
     for (let i = 0; i < 8; i++) {
         if (dataView.getUint8(i) !== pngSignature[i]) {
-            console.error("[LoadImageX] Not a valid PNG file.");
+            logError("[LoadImageX] Not a valid PNG file.");
             return null;
         }
     }
@@ -107,7 +127,7 @@ function extractPromptsFromWorkflow(workflow) {
             }
         }
     } catch (error) {
-        console.error("[LoadImageX] Error extracting prompts from workflow:", error);
+        logError("[LoadImageX] Error extracting prompts from workflow:", error);
     }
     return prompts;
 }
@@ -128,8 +148,8 @@ async function updatePromptsFromImage(filename, node) {
         const metadata = parsePNGMetadata(buffer);
         
         // Log metadata in blue
-        console.log("%c[LoadImageX] Metadata:", "color: #0066ff; font-weight: bold");
-        console.log("%c" + JSON.stringify(metadata, null, 2), "color: #0066ff");
+        log("%c[LoadImageX] Metadata:", "color: #0066ff; font-weight: bold");
+        log("%c" + JSON.stringify(metadata, null, 2), "color: #0066ff");
         
         if (metadata && metadata.prompt) {
             const promptData = JSON.parse(cleanJSONString(metadata.prompt));
@@ -137,21 +157,21 @@ async function updatePromptsFromImage(filename, node) {
 
             // Log positive prompt in green
             if (prompts.positive) {
-                console.log("%c[LoadImageX] Positive Prompt:", "color: #00cc00; font-weight: bold");
-                console.log("%c" + prompts.positive, "color: #00cc00");
+                log("%c[LoadImageX] Positive Prompt:", "color: #00cc00; font-weight: bold");
+                log("%c" + prompts.positive, "color: #00cc00");
             }
             
             // Log negative prompt in red
             if (prompts.negative) {
-                console.log("%c[LoadImageX] Negative Prompt:", "color: #ff0000; font-weight: bold");
-                console.log("%c" + prompts.negative, "color: #ff0000");
+                log("%c[LoadImageX] Negative Prompt:", "color: #ff0000; font-weight: bold");
+                log("%c" + prompts.negative, "color: #ff0000");
             }
 
             if (positiveWidget && prompts.positive) positiveWidget.value = prompts.positive;
             if (negativeWidget && prompts.negative) negativeWidget.value = prompts.negative;
         }
     } catch (error) {
-        console.error("[LoadImageX] Error processing image metadata:", error);
+        logError("[LoadImageX] Error processing image metadata:", error);
     }
 }
 
@@ -232,10 +252,10 @@ app.registerExtension({
                                         imageWidget.callback(data.name);
                                     }
                                 } else {
-                                    console.error("[LoadImageX] Upload failed:", response.statusText);
+                                    logError("[LoadImageX] Upload failed:", response.statusText);
                                 }
                             } catch (error) {
-                                console.error("[LoadImageX] Upload error:", error);
+                                logError("[LoadImageX] Upload error:", error);
                             } finally {
                                 document.body.removeChild(fileInput);
                             }
