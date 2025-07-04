@@ -90,14 +90,19 @@ function extractPromptsFromWorkflow(workflow) {
                     negativeNodeId = String(node.inputs.negative[0]);
                 }
 
-                if (prompts.seed === null && typeof node.inputs.seed === "number") {
-                    prompts.seed = node.inputs.seed;
+                const seedVal = node.inputs.seed;
+                if (prompts.seed === null && (typeof seedVal === "number" || (typeof seedVal === "string" && !isNaN(parseInt(seedVal))))) {
+                    prompts.seed = parseInt(seedVal);
                 }
-                if (prompts.steps === null && typeof node.inputs.steps === "number") {
-                    prompts.steps = node.inputs.steps;
+
+                const stepsVal = node.inputs.steps;
+                if (prompts.steps === null && (typeof stepsVal === "number" || (typeof stepsVal === "string" && !isNaN(parseInt(stepsVal))))) {
+                    prompts.steps = parseInt(stepsVal);
                 }
-                if (prompts.cfg === null && typeof node.inputs.cfg === "number") {
-                    prompts.cfg = node.inputs.cfg;
+
+                const cfgVal = node.inputs.cfg;
+                if (prompts.cfg === null && (typeof cfgVal === "number" || (typeof cfgVal === "string" && !isNaN(parseFloat(cfgVal))))) {
+                    prompts.cfg = parseFloat(cfgVal);
                 }
             }
         }

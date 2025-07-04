@@ -29,12 +29,26 @@ def _extract_from_workflow(workflow: dict) -> dict:
             if not negative_id and isinstance(inputs.get("negative"), list):
                 negative_id = str(inputs["negative"][0])
 
-            if meta["seed"] is None and isinstance(inputs.get("seed"), (int, float)):
-                meta["seed"] = int(inputs["seed"])
-            if meta["steps"] is None and isinstance(inputs.get("steps"), (int, float)):
-                meta["steps"] = int(inputs["steps"])
-            if meta["cfg"] is None and isinstance(inputs.get("cfg"), (int, float)):
-                meta["cfg"] = float(inputs["cfg"])
+            seed_val = inputs.get("seed")
+            if meta["seed"] is None and isinstance(seed_val, (int, float, str)):
+                try:
+                    meta["seed"] = int(seed_val)
+                except Exception:
+                    pass
+
+            steps_val = inputs.get("steps")
+            if meta["steps"] is None and isinstance(steps_val, (int, float, str)):
+                try:
+                    meta["steps"] = int(steps_val)
+                except Exception:
+                    pass
+
+            cfg_val = inputs.get("cfg")
+            if meta["cfg"] is None and isinstance(cfg_val, (int, float, str)):
+                try:
+                    meta["cfg"] = float(cfg_val)
+                except Exception:
+                    pass
 
     if not positive_id and not negative_id:
         for node_id, node in workflow.items():
