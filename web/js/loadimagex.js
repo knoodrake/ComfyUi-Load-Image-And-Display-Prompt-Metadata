@@ -74,55 +74,94 @@ function extractPromptsFromWorkflow(workflow) {
     if (!workflow) return prompts;
     
     try {
-        // First, let's find connections from NAGCFGGuider if it exists
-        let nagPositiveNodeId = null;
-        let nagNegativeNodeId = null;
+        // First, find nodes that connect to positive/negative inputs
+        let positiveNodeId = null;
+        let negativeNodeId = null;
         
+        // Check KSampler nodes first
         for (const nodeId in workflow) {
             const node = workflow[nodeId];
-            if (node.class_type === "NAGCFGGuider" && node.inputs) {
-                // Get the node IDs connected to positive and nag_negative
+            
+            if (node.class_type === "KSampler" && node.inputs) {
                 if (node.inputs.positive && Array.isArray(node.inputs.positive)) {
-                    nagPositiveNodeId = node.inputs.positive[0];
+                    positiveNodeId = String(node.inputs.positive[0]);
                 }
-                if (node.inputs.nag_negative && Array.isArray(node.inputs.nag_negative)) {
-                    nagNegativeNodeId = node.inputs.nag_negative[0];
+                if (node.inputs.negative && Array.isArray(node.inputs.negative)) {
+                    negativeNodeId = String(node.inputs.negative[0]);
                 }
             }
         }
         
-        // Now extract prompts from all nodes
+        // If no KSampler, check for CFGGuider
+        if (!positiveNodeId && !negativeNodeId) {
+            for (const nodeId in workflow) {
+                const node = workflow[nodeId];
+                
+                if (node.class_type === "CFGGuider" && node.inputs) {
+                    if (node.inputs.positive && Array.isArray(node.inputs.positive)) {
+                        let posId = node.inputs.positive[0];
+                        const posNode = workflow[posId];
+                        if (posNode && posNode.class_type === "ChromaPaddingRemoval" && 
+                            posNode.inputs && posNode.inputs.conditioning) {
+                            positiveNodeId = String(posNode.inputs.conditioning[0]);
+                        } else {
+                            positiveNodeId = String(posId);
+                        }
+                    }
+                    
+                    if (node.inputs.negative && Array.isArray(node.inputs.negative)) {
+                        let negId = node.inputs.negative[0];
+                        const negNode = workflow[negId];
+                        if (negNode && negNode.class_type === "ChromaPaddingRemoval" && 
+                            negNode.inputs && negNode.inputs.conditioning) {
+                            negativeNodeId = String(negNode.inputs.conditioning[0]);
+                        } else {
+                            negativeNodeId = String(negId);
+                        }
+                    }
+                }
+                
+                // Also check for NAGCFGGuider
+                if (node.class_type === "NAGCFGGuider" && node.inputs) {
+                    if (node.inputs.positive && Array.isArray(node.inputs.positive)) {
+                        positiveNodeId = String(node.inputs.positive[0]);
+                    }
+                    if (node.inputs.nag_negative && Array.isArray(node.inputs.nag_negative)) {
+                        negativeNodeId = String(node.inputs.nag_negative[0]);
+                    }
+                }
+            }
+        }
+        
+        // Now extract the actual prompt texts
         for (const nodeId in workflow) {
             const node = workflow[nodeId];
             
-            // Handle regular CLIPTextEncode nodes
             if (node.class_type === "CLIPTextEncode" && node.inputs && node.inputs.text) {
                 const text = node.inputs.text;
-                const title = node._meta?.title?.toLowerCase() || "";
                 
-                // Check if this node is connected to NAGCFGGuider
-                if (nagPositiveNodeId && nodeId === nagPositiveNodeId) {
+                if (positiveNodeId && String(nodeId) === positiveNodeId) {
                     prompts.positive = text;
-                } else if (nagNegativeNodeId && nodeId === nagNegativeNodeId) {
+                } else if (negativeNodeId && String(nodeId) === negativeNodeId) {
                     prompts.negative = text;
-                } else if (title.includes("negative") || title.includes("nag")) {
-                    if (!prompts.negative) prompts.negative = text;
                 } else {
-                    if (!prompts.positive) prompts.positive = text;
+                    const title = node._meta?.title?.toLowerCase() || "";
+                    if (title.includes("negative") || title.includes("nag")) {
+                        if (!prompts.negative) prompts.negative = text;
+                    } else {
+                        if (!prompts.positive) prompts.positive = text;
+                    }
                 }
             }
             
-            // Handle CLIPTextEncodeFlux nodes (for Flux models)
+            // Handle CLIPTextEncodeFlux nodes
             else if (node.class_type === "CLIPTextEncodeFlux" && node.inputs) {
-                // For Flux, we'll use clip_l as the main prompt text
                 const text = node.inputs.clip_l || node.inputs.t5xxl || "";
                 
-                // Check if this is connected to negative input of KSampler
-                // Node 34 is connected to negative, Node 33 is connected to positive
-                if (nodeId === "34") {
-                    prompts.negative = text;
-                } else if (nodeId === "33") {
+                if (positiveNodeId && String(nodeId) === positiveNodeId) {
                     prompts.positive = text;
+                } else if (negativeNodeId && String(nodeId) === negativeNodeId) {
+                    prompts.negative = text;
                 }
             }
         }
