@@ -70,7 +70,7 @@ function parsePNGMetadata(arrayBuffer) {
 
 // Helper function to find positive/negative prompts in the workflow
 function extractPromptsFromWorkflow(workflow) {
-    const prompts = { positive: "", negative: "" };
+    const prompts = { positive: "", negative: "", seed: null, steps: null, cfg: null };
     if (!workflow) return prompts;
     
     try {
@@ -81,13 +81,23 @@ function extractPromptsFromWorkflow(workflow) {
         // Check KSampler nodes first
         for (const nodeId in workflow) {
             const node = workflow[nodeId];
-            
-            if (node.class_type === "KSampler" && node.inputs) {
+
+            if ((node.class_type === "KSampler" || node.class_type === "KSamplerAdvanced") && node.inputs) {
                 if (node.inputs.positive && Array.isArray(node.inputs.positive)) {
                     positiveNodeId = String(node.inputs.positive[0]);
                 }
                 if (node.inputs.negative && Array.isArray(node.inputs.negative)) {
                     negativeNodeId = String(node.inputs.negative[0]);
+                }
+
+                if (prompts.seed === null && typeof node.inputs.seed === "number") {
+                    prompts.seed = node.inputs.seed;
+                }
+                if (prompts.steps === null && typeof node.inputs.steps === "number") {
+                    prompts.steps = node.inputs.steps;
+                }
+                if (prompts.cfg === null && typeof node.inputs.cfg === "number") {
+                    prompts.cfg = node.inputs.cfg;
                 }
             }
         }
@@ -175,9 +185,15 @@ function extractPromptsFromWorkflow(workflow) {
 async function updatePromptsFromImage(filename, node) {
     const positiveWidget = node.widgets.find(w => w.name === "positive_prompt");
     const negativeWidget = node.widgets.find(w => w.name === "negative_prompt");
+    const seedWidget = node.widgets.find(w => w.name === "seed");
+    const stepsWidget = node.widgets.find(w => w.name === "steps");
+    const cfgWidget = node.widgets.find(w => w.name === "cfg");
 
     if (positiveWidget) positiveWidget.value = "";
     if (negativeWidget) negativeWidget.value = "";
+    if (seedWidget) seedWidget.value = 0;
+    if (stepsWidget) stepsWidget.value = 0;
+    if (cfgWidget) cfgWidget.value = 0;
 
     try {
         const res = await api.fetchApi(`/view?filename=${encodeURIComponent(filename)}&type=input&subfolder=`);
@@ -206,8 +222,21 @@ async function updatePromptsFromImage(filename, node) {
                 log("%c" + prompts.negative, "color: #ff0000");
             }
 
+            if (prompts.seed !== null) {
+                log("%c[LoadImageX] Seed: " + prompts.seed, "color: #6a5acd");
+            }
+            if (prompts.steps !== null) {
+                log("%c[LoadImageX] Steps: " + prompts.steps, "color: #6a5acd");
+            }
+            if (prompts.cfg !== null) {
+                log("%c[LoadImageX] CFG: " + prompts.cfg, "color: #6a5acd");
+            }
+
             if (positiveWidget && prompts.positive) positiveWidget.value = prompts.positive;
             if (negativeWidget && prompts.negative) negativeWidget.value = prompts.negative;
+            if (seedWidget && prompts.seed !== null) seedWidget.value = prompts.seed;
+            if (stepsWidget && prompts.steps !== null) stepsWidget.value = prompts.steps;
+            if (cfgWidget && prompts.cfg !== null) cfgWidget.value = prompts.cfg;
         }
     } catch (error) {
         logError("[LoadImageX] Error processing image metadata:", error);
